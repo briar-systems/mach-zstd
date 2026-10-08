@@ -5,3 +5,4 @@
 use std.runtime;
 
 fwd zstd.bits;
+fwd zstd.fse;
