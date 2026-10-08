@@ -574,25 +574,19 @@ fun progress(st: Status, cur: *Cursor) res[Progress, ZstdError] {
     ret res[Progress, ZstdError].ok{p};
 }
 
-# create a decoder, allocating its staging and literals buffers from a
+# create a decoder, allocating its staging and literals buffers from a in one allocation
 # ---
 # a:      allocator used for every buffer
 # limits: what the decoder refuses
 pub fun init(a: *A.Allocator, limits: Limits) res[Decoder, ZstdError] {
-    val stage: res[*u8, A.Error] = A.allocate[u8](a, BLOCK_MAX);
-    if (sel stage.err) { ret res[Decoder, ZstdError].err{ZstdError.alloc{stage.err}}; }
-
-    val lits: res[*u8, A.Error] = A.allocate[u8](a, BLOCK_MAX);
-    if (sel lits.err) {
-        A.deallocate[u8](a, stage.ok, BLOCK_MAX);
-        ret res[Decoder, ZstdError].err{ZstdError.alloc{lits.err}};
-    }
+    val buf: res[*u8, A.Error] = A.allocate[u8](a, 2 * BLOCK_MAX);
+    if (sel buf.err) { ret res[Decoder, ZstdError].err{ZstdError.alloc{buf.err}}; }
 
     var d: Decoder;
     d.a      = a;
     d.limits = limits;
-    d.stage  = stage.ok;
-    d.lits   = lits.ok;
+    d.stage  = buf.ok;
+    d.lits   = ?buf.ok[BLOCK_MAX];
     reset(?d);
     ret res[Decoder, ZstdError].ok{d};
 }
@@ -618,14 +612,10 @@ pub fun dnit(d: *Decoder) err[A.Error] {
     if (sel w.err) { ret w; }
 
     if (d.stage != nil) {
-        val s: err[A.Error] = A.deallocate[u8](d.a, d.stage, BLOCK_MAX);
-        if (sel s.err) { ret s; }
+        val freed: err[A.Error] = A.deallocate[u8](d.a, d.stage, 2 * BLOCK_MAX);
+        if (sel freed.err) { ret freed; }
         d.stage = nil;
-    }
-    if (d.lits != nil) {
-        val l: err[A.Error] = A.deallocate[u8](d.a, d.lits, BLOCK_MAX);
-        if (sel l.err) { ret l; }
-        d.lits = nil;
+        d.lits  = nil;
     }
     ret err[A.Error].ok{};
 }
