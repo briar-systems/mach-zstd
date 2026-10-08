@@ -34,6 +34,7 @@ abi = "aapcs64"
 [artifact.zstd]
 kind = "static"
 default = true
+export = true
 entry = "lib/zstd.mach"
 out = "{project.work}/lib/zstd"
 targets = ["*"]
