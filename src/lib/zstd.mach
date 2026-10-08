@@ -3,3 +3,5 @@
 
 # the startup a test dispatcher of this library links
 use std.runtime;
+
+fwd zstd.bits;
