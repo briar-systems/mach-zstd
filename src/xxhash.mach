@@ -1,0 +1,120 @@
+# XXH64, the hash behind the zstd content checksum
+
+use std.system.capability;
+use std.types.size.usize;
+
+use zstd.bits;
+
+val P1: u64 = 0x9E3779B185EBCA87;
+val P2: u64 = 0xC2B2AE3D27D4EB4F;
+val P3: u64 = 0x165667B19E3779F9;
+val P4: u64 = 0x85EBCA77C2B2AE63;
+val P5: u64 = 0x27D4EB2F165667C5;
+
+# a streaming hash with seed zero
+pub rec State {
+    v:     [4]u64;
+    buf:   [32]u8;
+    fill:  usize;
+    total: u64;
+}
+
+fun rotl(x: u64, r: u64) u64 {
+    ret (x << r) | (x >> (64 - r));
+}
+
+fun round(acc: u64, input: u64) u64 {
+    ret rotl(acc + input * P2, 31) * P1;
+}
+
+fun merge(h: u64, v: u64) u64 {
+    ret (h ^ round(0, v)) * P1 + P4;
+}
+
+pub fun init(s: *State) {
+    s.v[0]  = P1 + P2;
+    s.v[1]  = P2;
+    s.v[2]  = 0;
+    s.v[3]  = 0 - P1;
+    s.fill  = 0;
+    s.total = 0;
+}
+
+fun stripe(s: *State, p: *u8) {
+    s.v[0] = round(s.v[0], bits.le64(p));
+    s.v[1] = round(s.v[1], bits.le64(?p[8]));
+    s.v[2] = round(s.v[2], bits.le64(?p[16]));
+    s.v[3] = round(s.v[3], bits.le64(?p[24]));
+}
+
+# feed len bytes
+pub fun update(s: *State, p: *u8, len: usize) {
+    s.total = s.total + len::u64;
+
+    var at: usize = 0;
+    if (s.fill > 0) {
+        for (at < len && s.fill < 32) {
+            s.buf[s.fill] = p[at];
+            s.fill        = s.fill + 1;
+            at            = at + 1;
+        }
+        if (s.fill < 32) { ret; }
+        stripe(s, ?s.buf[0]);
+        s.fill = 0;
+    }
+
+    for (at + 32 <= len) {
+        stripe(s, ?p[at]);
+        at = at + 32;
+    }
+
+    for (at < len) {
+        s.buf[s.fill] = p[at];
+        s.fill        = s.fill + 1;
+        at            = at + 1;
+    }
+}
+
+# the hash of everything fed so far
+pub fun digest(s: *State) u64 {
+    var h: u64 = P5;
+    if (s.total >= 32) {
+        h = rotl(s.v[0], 1) + rotl(s.v[1], 7) + rotl(s.v[2], 12) + rotl(s.v[3], 18);
+        h = merge(h, s.v[0]);
+        h = merge(h, s.v[1]);
+        h = merge(h, s.v[2]);
+        h = merge(h, s.v[3]);
+    }
+    h = h + s.total;
+
+    var at: usize = 0;
+    for (at + 8 <= s.fill) {
+        h  = rotl(h ^ round(0, bits.le64(?s.buf[at])), 27) * P1 + P4;
+        at = at + 8;
+    }
+    if (at + 4 <= s.fill) {
+        h  = rotl(h ^ (bits.le32(?s.buf[at])::u64 * P1), 23) * P2 + P3;
+        at = at + 4;
+    }
+    for (at < s.fill) {
+        h  = rotl(h ^ (s.buf[at]::u64 * P5), 11) * P1;
+        at = at + 1;
+    }
+
+    h = (h ^ (h >> 33)) * P2;
+    h = (h ^ (h >> 29)) * P3;
+    ret h ^ (h >> 32);
+}
+
+$if (capability.HOSTED) {
+    test xxhash__published_vectors {
+        var s: State;
+        init(?s);
+        if (digest(?s) != 0xEF46DB3751D8E999) { ret 1; }
+
+        init(?s);
+        update(?s, "abc", 3);
+        if (digest(?s) != 0x44BC2CF5AD770999) { ret 2; }
+        ret 0;
+    }
+}

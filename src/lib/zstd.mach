@@ -7,3 +7,4 @@ use std.runtime;
 fwd zstd.bits;
 fwd zstd.fse;
 fwd zstd.huffman;
+fwd zstd.xxhash;
