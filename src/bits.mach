@@ -1,0 +1,159 @@
+# bit readers and little-endian helpers shared by the entropy coders
+#
+# FSE and Huffman streams are read backwards: the last byte holds a 1 marker bit
+# above the data, and the first bit read is the highest one. a read past the
+# start of the stream returns zeros for the missing low bits and leaves the
+# position negative, which is how the FSE weight stream signals its end.
+# table descriptions are read forwards, least significant bit first.
+
+use std.types.bool.bool;
+use std.types.bool.false;
+use std.types.bool.true;
+use std.types.size.usize;
+
+# a backward bit stream
+# ---
+# src: first byte of the stream
+# pos: bits still unread, negative once a read ran past the start
+pub rec Reverse {
+    src: *u8;
+    pos: i64;
+}
+
+# a forward bit stream
+# ---
+# src: first byte of the stream
+# len: length in bytes
+# pos: bits already read
+pub rec Forward {
+    src: *u8;
+    len: usize;
+    pos: usize;
+}
+
+pub fun le16(p: *u8) u32 {
+    ret p[0]::u32 | (p[1]::u32 << 8);
+}
+
+pub fun le24(p: *u8) u32 {
+    ret p[0]::u32 | (p[1]::u32 << 8) | (p[2]::u32 << 16);
+}
+
+pub fun le32(p: *u8) u32 {
+    ret p[0]::u32 | (p[1]::u32 << 8) | (p[2]::u32 << 16) | (p[3]::u32 << 24);
+}
+
+pub fun le64(p: *u8) u64 {
+    ret le32(p)::u64 | (le32(?p[4])::u64 << 32);
+}
+
+# index of the highest set bit, or 0 for zero
+pub fun high_bit(v: u32) u32 {
+    var n: u32 = 0;
+    var x: u32 = v;
+    for (x > 1) {
+        x = x >> 1;
+        n = n + 1;
+    }
+    ret n;
+}
+
+# open a backward stream over len bytes
+# ---
+# ret: false if the stream is empty or its last byte carries no marker bit
+pub fun open(r: *Reverse, src: *u8, len: usize) bool {
+    if (len == 0)          { ret false; }
+    if (src[len - 1] == 0) { ret false; }
+
+    r.src = src;
+    r.pos = (len * 8)::i64 - 8 + high_bit(src[len - 1]::u32)::i64;
+    ret true;
+}
+
+# the n bits ending at bit position p, with missing bits below the start as zeros
+fun bits_at(r: *Reverse, p: i64, n: u32) u64 {
+    if (n == 0) { ret 0; }
+
+    var at:   i64 = p;
+    var want: i64 = n::i64;
+    var low:  u64 = 0;
+    if (at < 0) {
+        low  = (0 - at)::u64;
+        want = want + at;
+        at   = 0;
+    }
+    if (want <= 0) { ret 0; }
+
+    val first: usize = (at >> 3)::usize;
+    val shift: u64   = (at & 7)::u64;
+    val count: usize = ((shift::i64 + want + 7) >> 3)::usize;
+
+    var w: u64   = 0;
+    var i: usize = 0;
+    for (i < count) {
+        w = w | (r.src[first + i]::u64 << (i * 8)::u64);
+        i = i + 1;
+    }
+
+    val v: u64 = (w >> shift) & ((1::u64 << want::u64) - 1);
+    ret v << low;
+}
+
+# read n bits (n <= 32) and advance
+pub fun read(r: *Reverse, n: u32) u64 {
+    r.pos = r.pos - n::i64;
+    ret bits_at(r, r.pos, n);
+}
+
+# the next n bits without consuming them
+pub fun peek(r: *Reverse, n: u32) u64 {
+    ret bits_at(r, r.pos - n::i64, n);
+}
+
+pub fun skip(r: *Reverse, n: u32) {
+    r.pos = r.pos - n::i64;
+}
+
+pub fun open_forward(f: *Forward, src: *u8, len: usize) {
+    f.src = src;
+    f.len = len;
+    f.pos = 0;
+}
+
+# read n bits (n <= 16) and advance
+pub fun read_forward(f: *Forward, n: u32) u32 {
+    var v:   u32 = 0;
+    var got: u32 = 0;
+    for (got < n) {
+        val at: usize = f.pos >> 3;
+        if (at >= f.len) {
+            f.pos = f.pos + (n - got)::usize;
+            ret v;
+        }
+
+        val have: u32 = 8 - (f.pos & 7)::u32;
+        var take: u32 = n - got;
+        if (take > have) { take = have; }
+
+        val b: u32 = (f.src[at]::u32 >> (f.pos & 7)::u32) & ((1::u32 << take) - 1);
+        v     = v | (b << got);
+        got   = got + take;
+        f.pos = f.pos + take::usize;
+    }
+    ret v;
+}
+
+# give back the last bit read
+pub fun unread_forward(f: *Forward, n: u32) {
+    f.pos = f.pos - n::usize;
+}
+
+# whether a forward read went past the end of the stream
+pub fun overrun(f: *Forward) bool {
+    ret f.pos > f.len * 8;
+}
+
+# whole bytes consumed so far, rounding a partial byte up
+pub fun bytes_used(f: *Forward) usize {
+    ret (f.pos + 7) >> 3;
+}
