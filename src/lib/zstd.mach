@@ -1,0 +1,5 @@
+# the zstd library, what a dependent's `use zstd;` binds
+# Zstandard (RFC 8878) decompression.
+
+# the startup a test dispatcher of this library links
+use std.runtime;
