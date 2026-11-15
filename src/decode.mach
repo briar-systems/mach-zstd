@@ -316,7 +316,7 @@ pub rec Window {
 # ---
 # a:    allocator for the storage
 # size: window the frame declared
-pub fun window_open(w: *Window, a: *A.Allocator, size: usize) err[A.Error] {
+pub fun window_init(w: *Window, a: *A.Allocator, size: usize) err[A.Error] {
     var limit: usize = size;
     if (limit > BLOCK_MAX) { limit = BLOCK_MAX; }
 
@@ -335,7 +335,7 @@ pub fun window_open(w: *Window, a: *A.Allocator, size: usize) err[A.Error] {
     ret err[A.Error].ok{};
 }
 
-pub fun window_close(w: *Window, a: *A.Allocator) err[A.Error] {
+pub fun window_dnit(w: *Window, a: *A.Allocator) err[A.Error] {
     if (w.buf == nil) { ret err[A.Error].ok{}; }
 
     val err_freed: err[A.Error] = A.deallocate[u8](a, w.buf, w.cap);
@@ -608,7 +608,7 @@ pub fun reset(d: *Decoder) {
 # ---
 # ret: ok, or the allocator's first refusal, which leaves the decoder owning what was not freed
 pub fun dnit(d: *Decoder) err[A.Error] {
-    val err_window_close: err[A.Error] = window_close(?d.win, d.a);
+    val err_window_close: err[A.Error] = window_dnit(?d.win, d.a);
     if (sel err_window_close.err) { ret err_window_close; }
 
     if (d.stage != nil) {
@@ -663,13 +663,13 @@ fun begin_frame(d: *Decoder) u8 {
 
     val size: usize = h.window::usize;
     if (d.win.buf == nil || d.win.size != size) {
-        val err_closed: err[A.Error] = window_close(?d.win, d.a);
+        val err_closed: err[A.Error] = window_dnit(?d.win, d.a);
         if (sel err_closed.err) {
             d.fault = err_closed.err;
             d.state = S_DEAD;
             ret STEP_ALLOC;
         }
-        val err_opened: err[A.Error] = window_open(?d.win, d.a, size);
+        val err_opened: err[A.Error] = window_init(?d.win, d.a, size);
         if (sel err_opened.err) {
             d.fault = err_opened.err;
             d.state = S_DEAD;
@@ -685,7 +685,7 @@ fun begin_frame(d: *Decoder) u8 {
     d.rep.o[2] = 8;
     d.seen     = 0;
     d.huff     = false;
-    xxhash.init(?d.hash);
+    xxhash.make(?d.hash);
     ret STEP_MORE;
 }
 
@@ -856,7 +856,7 @@ fun sequences(d: *Decoder, src: *u8, len: usize, lit: *Literals) err[Defect] {
     at = at + res_load_table_t_ml.ok;
 
     var r: bits.Reverse;
-    if (!bits.open(?r, ?src[at], len - at)) { ret err[Defect].err{Defect.corrupted{}}; }
+    if (!bits.make(?r, ?src[at], len - at)) { ret err[Defect].err{Defect.corrupted{}}; }
 
     var sll: usize = fse.start(?d.ll, ?r);
     var sof: usize = fse.start(?d.of, ?r);
@@ -1226,7 +1226,7 @@ $if (capability.HOSTED) {
         page.make(?a);
 
         var w:          Window;
-        val err_opened: err[A.Error] = window_open(?w, ?a, 16);
+        val err_opened: err[A.Error] = window_init(?w, ?a, 16);
         if (sel err_opened.err) { ret 1; }
 
         val data: [5]u8 = [5]u8{0x61, 0x62, 0x63, 0x64, 0x45};
@@ -1269,7 +1269,7 @@ $if (capability.HOSTED) {
         if (!sel err_far.err)        { ret 6; }
         if (!sel err_far.err.offset) { ret 6; }
 
-        window_close(?w, ?a);
+        window_dnit(?w, ?a);
         ret 0;
     }
 

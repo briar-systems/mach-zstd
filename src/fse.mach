@@ -114,7 +114,7 @@ pub fun build(t: *Table, probs: *i16, count: usize, accuracy: u32) {
 # ret:         bytes the description occupies, or none if it is invalid
 pub fun describe(src: *u8, len: usize, max_symbols: usize, max_acc: u32, t: *Table) opt[usize] {
     var f: bits.Forward;
-    bits.open_forward(?f, src, len);
+    bits.forward_make(?f, src, len);
 
     val accuracy: u32 = bits.read_forward(?f, 4) + 5;
     if (accuracy > max_acc || accuracy > MAX_ACCURACY) { ret opt[usize].none{}; }

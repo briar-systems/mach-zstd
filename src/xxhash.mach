@@ -31,7 +31,7 @@ fun merge(h: u64, v: u64) u64 {
     ret (h ^ round(0, v)) * P1 + P4;
 }
 
-pub fun init(s: *State) {
+pub fun make(s: *State) {
     s.v[0]  = P1 + P2;
     s.v[1]  = P2;
     s.v[2]  = 0;
@@ -109,10 +109,10 @@ pub fun digest(s: *State) u64 {
 $if (capability.HOSTED) {
     test xxhash__published_vectors {
         var s: State;
-        init(?s);
+        make(?s);
         if (digest(?s) != 0xEF46DB3751D8E999) { ret 1; }
 
-        init(?s);
+        make(?s);
         update(?s, "abc", 3);
         if (digest(?s) != 0x44BC2CF5AD770999) { ret 2; }
         ret 0;

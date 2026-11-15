@@ -37,7 +37,7 @@ fun fse_weights(src: *u8, len: usize, weights: *u8) opt[usize] {
     if (!sel opt_used.some) { ret opt[usize].none{}; }
 
     var r: bits.Reverse;
-    if (!bits.open(?r, ?src[opt_used.some], len - opt_used.some)) { ret opt[usize].none{}; }
+    if (!bits.make(?r, ?src[opt_used.some], len - opt_used.some)) { ret opt[usize].none{}; }
 
     var s1: usize = fse.start(?ft, ?r);
     var s2: usize = fse.start(?ft, ?r);
@@ -150,7 +150,7 @@ pub fun read_tree(src: *u8, len: usize, t: *Table) opt[usize] {
 # ret: false if the stream is malformed or not consumed exactly
 pub fun decode_stream(t: *Table, src: *u8, len: usize, dst: *u8, count: usize) bool {
     var r: bits.Reverse;
-    if (!bits.open(?r, src, len)) { ret false; }
+    if (!bits.make(?r, src, len)) { ret false; }
 
     var i: usize = 0;
     for (i < count) {

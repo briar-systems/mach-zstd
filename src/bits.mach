@@ -61,7 +61,7 @@ pub fun high_bit(v: u32) u32 {
 # open a backward stream over len bytes
 # ---
 # ret: false if the stream is empty or its last byte carries no marker bit
-pub fun open(r: *Reverse, src: *u8, len: usize) bool {
+pub fun make(r: *Reverse, src: *u8, len: usize) bool {
     if (len == 0)          { ret false; }
     if (src[len - 1] == 0) { ret false; }
 
@@ -114,7 +114,7 @@ pub fun skip(r: *Reverse, n: u32) {
     r.pos = r.pos - n::i64;
 }
 
-pub fun open_forward(f: *Forward, src: *u8, len: usize) {
+pub fun forward_make(f: *Forward, src: *u8, len: usize) {
     f.src = src;
     f.len = len;
     f.pos = 0;
