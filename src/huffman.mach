@@ -32,12 +32,12 @@ pub rec Table {
 # ---
 # ret: the weight count, or none if the stream is malformed
 fun fse_weights(src: *u8, len: usize, weights: *u8) opt[usize] {
-    var ft:   fse.Table;
-    val used: opt[usize] = fse.describe(src, len, 12, 6, ?ft);
-    if (!sel used.some) { ret opt[usize].none{}; }
+    var ft:       fse.Table;
+    val opt_used: opt[usize] = fse.describe(src, len, 12, 6, ?ft);
+    if (!sel opt_used.some) { ret opt[usize].none{}; }
 
     var r: bits.Reverse;
-    if (!bits.open(?r, ?src[used.some], len - used.some)) { ret opt[usize].none{}; }
+    if (!bits.open(?r, ?src[opt_used.some], len - opt_used.some)) { ret opt[usize].none{}; }
 
     var s1: usize = fse.start(?ft, ?r);
     var s2: usize = fse.start(?ft, ?r);
@@ -122,9 +122,9 @@ pub fun read_tree(src: *u8, len: usize, t: *Table) opt[usize] {
 
     if (head < 128) {
         if (head == 0 || 1 + head > len) { ret opt[usize].none{}; }
-        val n: opt[usize] = fse_weights(?src[1], head, ?weights[0]);
-        if (!sel n.some) { ret opt[usize].none{}; }
-        count = n.some;
+        val opt_fse_weights: opt[usize] = fse_weights(?src[1], head, ?weights[0]);
+        if (!sel opt_fse_weights.some) { ret opt[usize].none{}; }
+        count = opt_fse_weights.some;
         used  = 1 + head;
     }
     or {
@@ -197,11 +197,11 @@ $if (capability.HOSTED) {
         val data: [2]u8 = [2]u8{0x03, 0xD2};
         val want: [6]u8 = [6]u8{0, 1, 2, 4, 5, 0};
 
-        var t:    Table;
-        val used: opt[usize] = read_tree(?tree[0], 4, ?t);
-        if (!sel used.some) { ret 1; }
-        if (used.some != 4) { ret 5; }
-        if (t.bits != 4)    { ret 2; }
+        var t:        Table;
+        val opt_used: opt[usize] = read_tree(?tree[0], 4, ?t);
+        if (!sel opt_used.some) { ret 1; }
+        if (opt_used.some != 4) { ret 5; }
+        if (t.bits != 4)        { ret 2; }
 
         var out: [6]u8;
         if (!decode_stream(?t, ?data[0], 2, ?out[0], 6)) { ret 3; }
