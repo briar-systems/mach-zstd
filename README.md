@@ -17,11 +17,7 @@ git = "https://github.com/briar-systems/mach-zstd"
 ref = "branch/dev"
 ```
 
-Then bind the library in a source file:
-
-```mach
-use zstd;
-```
+Then import the decoder module by its source path in the package, as the example below does with `use D: zstd.decode;`.
 
 The decoder is a streaming state machine in the shape of `std.compress.inflate`. Input comes in chunks of any size and output drains in pieces of any size. A frame whose window exceeds `Limits.max_window` is refused, never truncated, and every buffer comes from the allocator you pass.
 

@@ -30,7 +30,7 @@ arch = "aarch64"
 sys = "darwin"
 abi = "darwinpcs"
 
-# the library, what a dependent's `use zstd;` binds
+# the library, the modules its prebuilt artifact carries
 [artifact.zstd]
 kind = "static"
 default = true

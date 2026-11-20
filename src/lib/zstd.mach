@@ -1,4 +1,4 @@
-# the zstd library, what a dependent's `use zstd;` binds
+# the zstd library, the modules its prebuilt artifact carries
 # Zstandard (RFC 8878) decompression.
 
 # the startup a test dispatcher of this library links
