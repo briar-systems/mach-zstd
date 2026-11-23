@@ -8,3 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Each release groups its entries under `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed` and `Security`, and marks a breaking change inside the entry.
 
 ## [Unreleased]
+
+## [0.1.0] - 2026-11-23
+
+### Added
+
+- Initial release for Mach 7 and `std` `^10.0.0`: Zstandard (RFC 8878) streaming decompression (`zstd.decode`), FSE table decoding (`zstd.fse`), Huffman decoders (`zstd.huffman`), bit readers (`zstd.bits`), and XXH64 checksums (`zstd.xxhash`).
