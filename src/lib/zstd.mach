@@ -1,0 +1,11 @@
+# the zstd library, the modules its prebuilt artifact carries
+# Zstandard (RFC 8878) decompression.
+
+# the startup a test dispatcher of this library links
+use std.runtime;
+
+fwd zstd.bits;
+fwd zstd.fse;
+fwd zstd.huffman;
+fwd zstd.xxhash;
+fwd zstd.decode;
